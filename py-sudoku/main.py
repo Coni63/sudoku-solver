@@ -3,6 +3,7 @@
 
 import time
 
+
 def to_grid(sudoku: str) -> list[list[int]]:
     grid = []
     for i in range(9):
@@ -18,22 +19,24 @@ def missing_positions(grid: list[list[int]]) -> tuple[int, int]:
                 return x, y
     return -1, -1
 
+
 def is_valid(grid, i, j, e):
     for x in range(9):
         if grid[i][x] == e:
             return False
-        
+
     for x in range(9):
         if grid[x][j] == e:
             return False
-            
+
     sec_x, sec_y = i-i%3, j-j%3
     for x in range(sec_x, sec_x + 3):
         for y in range(sec_y, sec_y + 3):
             if grid[x][y] == e:
                 return False
-    
+
     return True
+
 
 def solve(sudoku, backtracks=0):
     i, j = missing_positions(sudoku)
@@ -53,9 +56,10 @@ def solve(sudoku, backtracks=0):
             sudoku[i][j] = 0
     return False, sudoku, backtracks
 
-N = 000
+
+N = 10000
 with open("../sudoku.csv", "r") as f:
-    next(f) # skip header
+    next(f)  # skip header
     tic = time.perf_counter()
     for i, line in enumerate(f):
         board = line.strip()[:81]
