@@ -1,7 +1,8 @@
+use rayon::prelude::*;
 use std::fs::read_to_string;
 use std::time::Instant;
 
-fn to_grid(board: &String) -> [[u8; 9]; 9] {
+fn to_grid(board: &str) -> [[u8; 9]; 9] {
     let mut grid = [[0; 9]; 9];
     for (i, c) in board.chars().enumerate() {
         let row = i / 9;
@@ -11,7 +12,7 @@ fn to_grid(board: &String) -> [[u8; 9]; 9] {
     grid
 }
 
-fn missing_positions(grid: &[[u8; 9]; 9]) -> (u8, u8){
+fn missing_positions(grid: &[[u8; 9]; 9]) -> (u8, u8) {
     for x in 0..9 {
         for y in 0..9 {
             if grid[x][y] == 0 {
@@ -19,7 +20,7 @@ fn missing_positions(grid: &[[u8; 9]; 9]) -> (u8, u8){
             }
         }
     }
-    (255, 255)  // cannot use -1 as u8
+    (255, 255) // cannot use -1 as u8
 }
 
 fn is_valid(grid: &[[u8; 9]; 9], row: u8, col: u8, num: u8) -> bool {
@@ -38,8 +39,8 @@ fn is_valid(grid: &[[u8; 9]; 9], row: u8, col: u8, num: u8) -> bool {
     let start_row = row - row % 3;
     let start_col = col - col % 3;
 
-    for i in start_row..start_row+3 {
-        for j in start_col..start_col+3 {
+    for i in start_row..start_row + 3 {
+        for j in start_col..start_col + 3 {
             if grid[i as usize][j as usize] == num {
                 return false;
             }
@@ -49,45 +50,70 @@ fn is_valid(grid: &[[u8; 9]; 9], row: u8, col: u8, num: u8) -> bool {
     true
 }
 
-fn solve(sudoku: &mut [[u8; 9]; 9], backtracks: &mut u32) -> (bool, [[u8; 9]; 9], u32) {
-    let (i, j) = missing_positions(&sudoku);
+fn solve(sudoku: &mut [[u8; 9]; 9], backtracks: &mut u32) -> bool {
+    let (i, j) = missing_positions(sudoku);
 
     if i == 255 {
-        return (true, *sudoku, *backtracks);
+        return true;
     }
 
     for num in 1..10 {
-        if is_valid(&sudoku, i, j, num) {
+        if is_valid(sudoku, i, j, num) {
             sudoku[i as usize][j as usize] = num;
-            let (solved, new_sudoku, new_backtracks) = solve(sudoku, backtracks);
+            let solved = solve(sudoku, backtracks);
             if solved {
-                return (true, new_sudoku, new_backtracks);
+                return true;
             }
             *backtracks += 1;
             sudoku[i as usize][j as usize] = 0;
         }
     }
-
-    (false, *sudoku, *backtracks)
+    false
 }
 
-
 fn main() {
-    let n = 10000;
+    // let n = 1000000;
     let tic = Instant::now();
-    for (_i, line) in read_to_string("../sudoku.csv").unwrap().lines().skip(1).take(n).enumerate() {
-        let board: String = line.chars().take(81).collect();
-        // println!("Board {}: {}", i, board);
 
-        let mut sudoku = to_grid(&board);
+    let mut all_boards: Vec<String> = read_to_string("../sudoku.csv")
+        .unwrap()
+        .lines()
+        .skip(1)
+        // .take(100)
+        .map(String::from)
+        .collect();
 
-        // println!("Sudoku: {:?}", sudoku);
+    let ans: Vec<bool> = all_boards
+        .par_iter()
+        .map(|line| {
+            let board: String = line.chars().take(81).collect();
+            let solution: String = line.chars().skip(82).take(81).collect();
 
-        let mut backtracks: u32 = 0;
-        let (_, _, _backtracks_total) = solve(&mut sudoku, &mut backtracks);
-        // println!("Backtracks: {} backtracks", _backtracks_total);
-        // println!("Sudoku: {:?}", sudoku_solved);
-    }
+            // println!("Board {}: {}", i, board);
+
+            let mut sudoku = to_grid(&board);
+
+            // println!("Sudoku: {:?}", sudoku);
+
+            let mut backtracks: u32 = 0;
+            solve(&mut sudoku, &mut backtracks);
+
+            let sudoku_solved = sudoku
+                .iter()
+                .map(|row| {
+                    row.iter()
+                        .map(|char| char.to_string())
+                        .collect::<Vec<String>>()
+                        .join("")
+                })
+                .collect::<Vec<_>>()
+                .join("");
+
+            sudoku_solved == solution
+        })
+        .collect();
     let toc = tic.elapsed();
     println!("Time: {} ms", toc.as_millis());
+    // println!("Solved: {:?}", ans);
+    // println!("Backtracks: {:?}", ans);
 }
